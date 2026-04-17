@@ -1,0 +1,198 @@
+"use client";
+
+import { X, MessageSquare, Clock } from "lucide-react";
+import { StatusBadge, PriorityBadge } from "@/components/ui/badge";
+import { IssueStatus, Priority, IssueType } from "@/types";
+import { addComment } from "@/lib/actions/comments";
+import { useState } from "react";
+
+interface CommentData {
+  id: string;
+  body: string;
+  createdAt: Date;
+  user: { name: string };
+}
+
+interface WorklogData {
+  id: string;
+  durationMinutes: number;
+  date: Date;
+  note: string | null;
+  user: { name: string };
+}
+
+interface IssueDetailProps {
+  issue: {
+    id: string;
+    issueKey: string;
+    title: string;
+    description: string | null;
+    type: IssueType;
+    status: IssueStatus;
+    priority: Priority;
+    storyPoints: number | null;
+    originalEstimateMinutes: number | null;
+    dueDate: Date | null;
+    createdAt: Date;
+    assignee: { name: string } | null;
+    reporter: { name: string };
+    project: { name: string; key: string };
+    sprint: { name: string } | null;
+    comments: CommentData[];
+    worklogs: WorklogData[];
+  };
+  onClose: () => void;
+}
+
+const typeIcons: Record<IssueType, { color: string; label: string }> = {
+  EPIC: { color: "bg-purple-500", label: "E" },
+  STORY: { color: "bg-green-500", label: "S" },
+  TASK: { color: "bg-blue-500", label: "T" },
+  BUG: { color: "bg-red-500", label: "B" },
+  SUBTASK: { color: "bg-gray-400", label: "ST" },
+};
+
+export function IssueDetailPanel({ issue, onClose }: IssueDetailProps) {
+  const [commentBody, setCommentBody] = useState("");
+  const icon = typeIcons[issue.type];
+
+  const totalLogged = issue.worklogs.reduce((s, w) => s + w.durationMinutes, 0);
+
+  async function handleComment(formData: FormData) {
+    formData.set("issueId", issue.id);
+    await addComment(formData);
+    setCommentBody("");
+  }
+
+  return (
+    <div className="fixed inset-y-0 right-0 z-40 flex w-[480px] flex-col border-l border-gray-200 bg-white shadow-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-white ${icon.color}`}>
+            {icon.label}
+          </span>
+          <span className="text-sm font-mono text-gray-500">{issue.issueKey}</span>
+        </div>
+        <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-6 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">{issue.title}</h2>
+
+          {issue.description && (
+            <p className="text-sm text-gray-600 whitespace-pre-wrap">{issue.description}</p>
+          )}
+
+          {/* Fields */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs font-medium text-gray-500">Status</p>
+              <StatusBadge status={issue.status} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500">Priority</p>
+              <PriorityBadge priority={issue.priority} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500">Assignee</p>
+              <p className="text-gray-900">{issue.assignee?.name ?? "Unassigned"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500">Reporter</p>
+              <p className="text-gray-900">{issue.reporter.name}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500">Sprint</p>
+              <p className="text-gray-900">{issue.sprint?.name ?? "Backlog"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500">Story Points</p>
+              <p className="text-gray-900">{issue.storyPoints ?? "—"}</p>
+            </div>
+            {issue.originalEstimateMinutes && (
+              <div>
+                <p className="text-xs font-medium text-gray-500">Estimate</p>
+                <p className="text-gray-900">{Math.round(issue.originalEstimateMinutes / 60)}h</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-medium text-gray-500">Logged</p>
+              <p className="text-gray-900">{totalLogged > 0 ? `${Math.round(totalLogged / 60)}h` : "—"}</p>
+            </div>
+            {issue.dueDate && (
+              <div>
+                <p className="text-xs font-medium text-gray-500">Due Date</p>
+                <p className="text-gray-900">{new Date(issue.dueDate).toLocaleDateString()}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Activity */}
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+              <MessageSquare className="h-4 w-4" /> Activity
+            </h3>
+
+            {/* Comment form */}
+            <form action={handleComment} className="mb-4">
+              <textarea
+                name="body"
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                placeholder="Add a comment..."
+                rows={2}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <div className="mt-1 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={!commentBody.trim()}
+                  className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Comment
+                </button>
+              </div>
+            </form>
+
+            {/* Comments list */}
+            <div className="space-y-3">
+              {issue.comments.map((c) => (
+                <div key={c.id} className="rounded-md bg-gray-50 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-700">{c.user.name}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(c.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{c.body}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Worklogs */}
+            {issue.worklogs.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                  <Clock className="h-3.5 w-3.5" /> Time Logs
+                </h4>
+                <div className="space-y-1">
+                  {issue.worklogs.map((w) => (
+                    <div key={w.id} className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{w.user.name} — {w.note || "No note"}</span>
+                      <span>{w.durationMinutes}m · {new Date(w.date).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
