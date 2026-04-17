@@ -4,6 +4,7 @@ import { X, MessageSquare, Clock } from "lucide-react";
 import { StatusBadge, PriorityBadge } from "@/components/ui/badge";
 import { IssueStatus, Priority, IssueType } from "@/types";
 import { addComment } from "@/lib/actions/comments";
+import { addWorklog } from "@/lib/actions/worklogs";
 import { useState } from "react";
 
 interface CommentData {
@@ -54,6 +55,8 @@ const typeIcons: Record<IssueType, { color: string; label: string }> = {
 
 export function IssueDetailPanel({ issue, onClose }: IssueDetailProps) {
   const [commentBody, setCommentBody] = useState("");
+  const [showTimeForm, setShowTimeForm] = useState(false);
+  const [timeError, setTimeError] = useState("");
   const icon = typeIcons[issue.type];
 
   const totalLogged = issue.worklogs.reduce((s, w) => s + w.durationMinutes, 0);
@@ -175,11 +178,67 @@ export function IssueDetailPanel({ issue, onClose }: IssueDetailProps) {
             </div>
 
             {/* Worklogs */}
-            {issue.worklogs.length > 0 && (
-              <div className="mt-4">
-                <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-                  <Clock className="h-3.5 w-3.5" /> Time Logs
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                  <Clock className="h-3.5 w-3.5" /> Time Logs ({totalLogged > 0 ? `${Math.round(totalLogged / 60)}h ${totalLogged % 60}m` : "0m"})
                 </h4>
+                <button
+                  type="button"
+                  onClick={() => setShowTimeForm((v) => !v)}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  {showTimeForm ? "Cancel" : "+ Log Time"}
+                </button>
+              </div>
+
+              {showTimeForm && (
+                <form
+                  action={async (formData: FormData) => {
+                    setTimeError("");
+                    formData.set("issueId", issue.id);
+                    const result = await addWorklog(formData);
+                    if (result?.error) {
+                      setTimeError(result.error);
+                      return;
+                    }
+                    setShowTimeForm(false);
+                  }}
+                  className="mb-3 space-y-2 rounded-md border border-gray-200 p-3"
+                >
+                  {timeError && <p className="text-xs text-red-600">{timeError}</p>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      name="date"
+                      type="date"
+                      defaultValue={new Date().toISOString().split("T")[0]}
+                      required
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <input
+                      name="durationMinutes"
+                      type="number"
+                      min={1}
+                      required
+                      placeholder="Minutes"
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <input
+                    name="note"
+                    placeholder="What did you work on?"
+                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                  >
+                    Log
+                  </button>
+                </form>
+              )}
+
+              {issue.worklogs.length > 0 && (
                 <div className="space-y-1">
                   {issue.worklogs.map((w) => (
                     <div key={w.id} className="flex items-center justify-between text-xs text-gray-500">
@@ -188,8 +247,8 @@ export function IssueDetailPanel({ issue, onClose }: IssueDetailProps) {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
