@@ -1,44 +1,19 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge, PriorityBadge } from "@/components/ui/badge";
-import { IssueStatus, Priority } from "@/types";
 import Link from "next/link";
+import { getDashboardData } from "@/lib/actions/dashboard";
 
-// Static demo data for initial dashboard — will be replaced with DB queries
-const myTasks = [
-  {
-    id: "1",
-    issueKey: "AGR-2",
-    title: "Implement request routing",
-    status: "TODO" as IssueStatus,
-    priority: "HIGH" as Priority,
-    project: "API Gateway Rebuild",
-  },
-  {
-    id: "2",
-    issueKey: "AGR-6",
-    title: "Auth middleware with JWT validation",
-    status: "REVIEW" as IssueStatus,
-    priority: "HIGH" as Priority,
-    project: "API Gateway Rebuild",
-  },
-  {
-    id: "3",
-    issueKey: "CPV2-2",
-    title: "Homepage redesign",
-    status: "TODO" as IssueStatus,
-    priority: "HIGH" as Priority,
-    project: "Customer Portal v2",
-  },
-];
+export const dynamic = "force-dynamic";
 
-const stats = [
-  { label: "Open Issues", value: "8", color: "text-blue-600" },
-  { label: "In Progress", value: "2", color: "text-yellow-600" },
-  { label: "In Review", value: "1", color: "text-purple-600" },
-  { label: "Done This Sprint", value: "2", color: "text-green-600" },
-];
+export default async function DashboardPage() {
+  const data = await getDashboardData();
 
-export default function DashboardPage() {
+  if (!data) {
+    return <div className="p-6">User not found</div>;
+  }
+
+  const { stats, myTasks, urgentTasks, projectProgress } = data;
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,72 +33,109 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* My tasks */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Tasks</CardTitle>
-          <Link
-            href="/board"
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            View Board →
-          </Link>
-        </CardHeader>
-        <div className="divide-y divide-gray-100">
-          {myTasks.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-center justify-between py-3"
+      <div className="grid grid-cols-2 gap-6">
+        {/* My tasks */}
+        <Card>
+          <CardHeader>
+            <CardTitle>My Open Tasks</CardTitle>
+            <Link
+              href="/board"
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-gray-400">
-                  {task.issueKey}
-                </span>
-                <span className="text-sm font-medium text-gray-900">
-                  {task.title}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <PriorityBadge priority={task.priority} />
-                <StatusBadge status={task.status} />
-              </div>
+              View Board →
+            </Link>
+          </CardHeader>
+          {myTasks.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-500">No open tasks assigned to you.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {myTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-gray-400">
+                      {task.issueKey}
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+                      {task.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PriorityBadge priority={task.priority} />
+                    <StatusBadge status={task.status} />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Card>
+          )}
+        </Card>
+
+        {/* Overdue and Due Soon Tasks */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Overdue & Due Soon</CardTitle>
+          </CardHeader>
+          {urgentTasks.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-500">No urgent tasks.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {urgentTasks.map((task) => {
+                const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-gray-400">
+                        {task.issueKey}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+                        {task.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-orange-600'}`}>
+                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ""}
+                      </span>
+                      <StatusBadge status={task.status} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
 
       {/* Projects summary */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>API Gateway Rebuild</CardTitle>
-            <span className="text-xs text-gray-400">AGR</span>
-          </CardHeader>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Sprint 1 Progress</span>
-              <span>3 / 5 done</span>
-            </div>
-            <div className="h-2 rounded-full bg-gray-100">
-              <div className="h-2 rounded-full bg-green-500" style={{ width: "60%" }} />
-            </div>
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Active Sprints Progress</h2>
+        {projectProgress.length === 0 ? (
+          <p className="text-sm text-gray-500">No active sprints.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {projectProgress.map((project) => (
+              <Card key={project.projectId}>
+                <CardHeader>
+                  <CardTitle>{project.projectName}</CardTitle>
+                  <span className="text-xs text-gray-400">{project.projectKey}</span>
+                </CardHeader>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>{project.sprintName}</span>
+                    <span>{project.done} / {project.total} done</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-2 rounded-full bg-green-500 transition-all" style={{ width: `${project.pct}%` }} />
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Customer Portal v2</CardTitle>
-            <span className="text-xs text-gray-400">CPV2</span>
-          </CardHeader>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Sprint 1 Progress</span>
-              <span>1 / 4 done</span>
-            </div>
-            <div className="h-2 rounded-full bg-gray-100">
-              <div className="h-2 rounded-full bg-green-500" style={{ width: "25%" }} />
-            </div>
-          </div>
-        </Card>
+        )}
       </div>
     </div>
   );

@@ -61,3 +61,12 @@ export const createCommentSchema = z.object({
   issueId: z.string().min(1),
   body: z.string().min(1, "Comment is required").max(5000),
 });
+
+// ─── Worklog ─────────────────────────────────────────────
+
+export const createWorklogSchema = z.object({
+  issueId: z.string().min(1, "Issue is required"),
+  date: z.string().min(1, "Date is required"),
+  durationMinutes: z.coerce.number().int().min(1, "Duration must be at least 1 minute").max(1440),
+  note: z.string().max(500).optional(),
+});
