@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getProjectByKey } from "@/lib/actions/projects";
 import { CreateIssueButton } from "@/components/issues/create-issue-button";
 import { IssueTable } from "@/components/issues/issue-table";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ export default async function ProjectDetailPage({
           </div>
         </div>
         <div className="flex gap-2">
+          <Link href={`/projects/${key}/time`}>
+            <Button variant="secondary">Time Report</Button>
+          </Link>
           <Button variant="secondary">Settings</Button>
           <CreateIssueButton
             projectId={project.id}

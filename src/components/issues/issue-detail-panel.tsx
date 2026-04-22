@@ -117,22 +117,62 @@ export function IssueDetailPanel({ issue, onClose }: IssueDetailProps) {
               <p className="text-xs font-medium text-gray-500">Story Points</p>
               <p className="text-gray-900">{issue.storyPoints ?? "—"}</p>
             </div>
-            {issue.originalEstimateMinutes && (
-              <div>
-                <p className="text-xs font-medium text-gray-500">Estimate</p>
-                <p className="text-gray-900">{Math.round(issue.originalEstimateMinutes / 60)}h</p>
-              </div>
-            )}
-            <div>
-              <p className="text-xs font-medium text-gray-500">Logged</p>
-              <p className="text-gray-900">{totalLogged > 0 ? `${Math.round(totalLogged / 60)}h` : "—"}</p>
-            </div>
             {issue.dueDate && (
               <div>
                 <p className="text-xs font-medium text-gray-500">Due Date</p>
                 <p className="text-gray-900">{new Date(issue.dueDate).toLocaleDateString()}</p>
               </div>
             )}
+          </div>
+
+          {/* Time Tracking */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wide">
+              <Clock className="h-3.5 w-3.5" /> Time Tracking
+            </h4>
+            {(() => {
+              const estimated = issue.originalEstimateMinutes || 0;
+              const remaining = Math.max(0, estimated - totalLogged);
+              const pct = estimated > 0 ? Math.min(100, Math.round((totalLogged / estimated) * 100)) : 0;
+              const isOver = totalLogged > estimated && estimated > 0;
+              return (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase">Estimated</p>
+                      <p className="text-sm font-semibold text-gray-700">
+                        {estimated > 0 ? `${Math.floor(estimated / 60)}h ${estimated % 60}m` : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase">Logged</p>
+                      <p className={`text-sm font-semibold ${isOver ? "text-red-600" : "text-indigo-600"}`}>
+                        {totalLogged > 0 ? `${Math.floor(totalLogged / 60)}h ${totalLogged % 60}m` : "0m"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase">Remaining</p>
+                      <p className={`text-sm font-semibold ${isOver ? "text-red-600" : "text-green-600"}`}>
+                        {estimated > 0 ? (isOver ? "Over by " + `${Math.floor((totalLogged - estimated) / 60)}h ${(totalLogged - estimated) % 60}m` : `${Math.floor(remaining / 60)}h ${remaining % 60}m`) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {estimated > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+                        <span>{pct}% spent</span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${isOver ? "bg-red-500" : pct > 80 ? "bg-yellow-500" : "bg-indigo-500"}`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Activity */}

@@ -49,20 +49,20 @@
 
 ## Phase 6 - Time Tracking
 
-- [ ] Add time log form on issue details
-- [ ] Store worklog entries with date, duration, note
-- [ ] Calculate estimated, spent, and remaining time
-- [ ] Add personal weekly time summary
-- [ ] Add project-level time report page
+- [x] Add time log form on issue details
+- [x] Store worklog entries with date, duration, note
+- [x] Calculate estimated, spent, and remaining time
+- [x] Add personal weekly time summary
+- [x] Add project-level time report page
 
 ## Phase 7 - Dashboard & Reports
 
-- [ ] Show my open tasks
-- [ ] Show overdue and due-soon tasks
-- [ ] Show project tasks by status
-- [ ] Add workload summary per team member
-- [ ] Add simple charts for sprint/time metrics
-- [ ] Add CSV export for reports in later iteration
+- [x] Show my open tasks
+- [x] Show overdue and due-soon tasks
+- [x] Show project tasks by status
+- [x] Add workload summary per team member
+- [x] Add simple charts for sprint/time metrics
+- [x] Add CSV export for reports in later iteration
 
 ## Phase 8 - Permissions & Notifications
 
