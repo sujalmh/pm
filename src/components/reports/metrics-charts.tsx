@@ -10,7 +10,12 @@ const COLORS = {
   DONE: "#22C55E" // green-500
 };
 
-export function SprintMetricsChart({ data }: { data: any[] }) {
+interface MetricsChartDatum {
+  name: string;
+  value: number;
+}
+
+export function SprintMetricsChart({ data }: { data: MetricsChartDatum[] }) {
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">

@@ -4,16 +4,9 @@ import { getProjectByKey } from "@/lib/actions/projects";
 import { getProjectTimeReport } from "@/lib/actions/worklogs";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { formatMinutes } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
-
-function formatMinutes(m: number) {
-  const h = Math.floor(m / 60);
-  const mins = m % 60;
-  if (h === 0) return `${mins}m`;
-  if (mins === 0) return `${h}h`;
-  return `${h}h ${mins}m`;
-}
 
 const statusColors: Record<string, string> = {
   BACKLOG: "bg-gray-100 text-gray-600",

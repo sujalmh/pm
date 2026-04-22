@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWeeklyTimeSummary } from "@/lib/actions/worklogs";
 import { WeekNavigator } from "@/components/time/week-navigator";
+import { formatMinutes } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +15,6 @@ function getWeekRange(dateStr?: string) {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
   return { start: monday, end: sunday };
-}
-
-function formatMinutes(m: number) {
-  const h = Math.floor(m / 60);
-  const mins = m % 60;
-  if (h === 0) return `${mins}m`;
-  if (mins === 0) return `${h}h`;
-  return `${h}h ${mins}m`;
 }
 
 const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

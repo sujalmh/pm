@@ -3,7 +3,16 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function CSVExportButton({ data, filename }: { data: any[], filename: string }) {
+type CsvCell = string | number | boolean | null | undefined;
+type CsvRow = Record<string, CsvCell>;
+
+export function CSVExportButton({
+  data,
+  filename,
+}: {
+  data: CsvRow[];
+  filename: string;
+}) {
   const handleDownload = () => {
     if (data.length === 0) return;
 
@@ -11,9 +20,11 @@ export function CSVExportButton({ data, filename }: { data: any[], filename: str
     const headers = Object.keys(data[0]).join(",");
     
     // Create CSV rows
-    const rows = data.map(row => 
+    const rows = data.map((row) =>
       Object.values(row)
-        .map(val => typeof val === "string" ? `"${val.replace(/"/g, '""')}"` : val)
+        .map((val) =>
+          typeof val === "string" ? `"${val.replace(/"/g, '""')}"` : val,
+        )
         .join(",")
     );
 

@@ -3,16 +3,9 @@ import { getReportsData } from "@/lib/actions/reports";
 import { SprintMetricsChart } from "@/components/reports/metrics-charts";
 import { CSVExportButton } from "@/components/reports/csv-export";
 import Image from "next/image";
+import { formatMinutes } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
-
-function formatMinutes(m: number) {
-  const h = Math.floor(m / 60);
-  const mins = m % 60;
-  if (h === 0) return `${mins}m`;
-  if (mins === 0) return `${h}h`;
-  return `${h}h ${mins}m`;
-}
 
 export default async function ReportsPage() {
   const data = await getReportsData();
