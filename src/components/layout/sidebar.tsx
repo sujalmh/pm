@@ -22,13 +22,13 @@ const navItems = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
-const bottomItems = [
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/profile", label: "Profile", icon: User },
-];
+interface SidebarProps {
+  role: string;
+}
 
-export function Sidebar() {
+export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
+  const isAdmin = role === "ADMIN";
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-gray-200 bg-white">
@@ -65,23 +65,31 @@ export function Sidebar() {
 
       {/* Bottom nav */}
       <div className="border-t border-gray-200 px-2 py-3 space-y-0.5">
-        {bottomItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          );
-        })}
+        {/* Settings — admin only */}
+        {isAdmin && (
+          <Link
+            href="/settings"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith("/settings")
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
+        )}
+        <Link
+          href="/profile"
+          className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            pathname.startsWith("/profile")
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          }`}
+        >
+          <User className="h-4 w-4" />
+          Profile
+        </Link>
       </div>
     </aside>
   );

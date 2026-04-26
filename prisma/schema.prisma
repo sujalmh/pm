@@ -51,6 +51,12 @@ enum IssueStatus {
   DONE
 }
 
+enum NotificationType {
+  ASSIGNED
+  MENTIONED
+  REMINDER
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -63,12 +69,13 @@ model User {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  ledTeams       Team[]       @relation("TeamLead")
+  ledTeams       Team[]         @relation("TeamLead")
   teamMembers    TeamMember[]
-  assignedIssues Issue[]      @relation("Assignee")
-  reportedIssues Issue[]      @relation("Reporter")
+  assignedIssues Issue[]        @relation("Assignee")
+  reportedIssues Issue[]        @relation("Reporter")
   worklogs       Worklog[]
   comments       Comment[]
+  notifications  Notification[]
 }
 
 model Team {
@@ -150,8 +157,9 @@ model Issue {
   sprint   Sprint?   @relation(fields: [sprintId], references: [id], onDelete: SetNull)
   assignee User?     @relation("Assignee", fields: [assigneeId], references: [id])
   reporter User      @relation("Reporter", fields: [reporterId], references: [id])
-  worklogs Worklog[]
-  comments Comment[]
+  worklogs      Worklog[]
+  comments      Comment[]
+  notifications Notification[]
 }
 
 model Worklog {
@@ -177,4 +185,17 @@ model Comment {
 
   issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  issueId   String?
+  createdAt DateTime         @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue Issue? @relation(fields: [issueId], references: [id], onDelete: SetNull)
 }

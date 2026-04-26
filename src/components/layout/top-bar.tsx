@@ -1,8 +1,24 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
-export function TopBar() {
+interface TopBarProps {
+  userId: string;
+  name: string;
+  role: string;
+}
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+export function TopBar({ userId, name, role }: TopBarProps) {
   return (
     <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
       {/* Search */}
@@ -16,13 +32,15 @@ export function TopBar() {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
-        <button className="relative rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-        </button>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-          SA
+      <div className="flex items-center gap-3">
+        <NotificationBell userId={userId} />
+
+        {/* Avatar */}
+        <div
+          title={`${name} (${role})`}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 cursor-default select-none"
+        >
+          {initials(name)}
         </div>
       </div>
     </header>

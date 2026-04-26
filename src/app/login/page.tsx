@@ -1,3 +1,5 @@
+import { signIn } from "@/lib/auth";
+
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -14,7 +16,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="space-y-4" action="/api/auth/callback/credentials" method="POST">
+        <form 
+          className="space-y-4" 
+          action={async (formData) => {
+            "use server";
+            await signIn("credentials", formData);
+          }}
+        >
           <div>
             <label
               htmlFor="email"

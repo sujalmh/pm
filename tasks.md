@@ -66,18 +66,18 @@
 
 ## Phase 8 - Permissions & Notifications
 
-- [ ] Restrict admin-only settings
-- [ ] Restrict project editing to managers/admins
-- [ ] Add in-app notifications for assignment and mentions
-- [ ] Add reminder logic for due dates
+- [x] Restrict admin-only settings
+- [x] Restrict project editing to managers/admins
+- [x] Add in-app notifications for assignment and mentions
+- [x] Add reminder logic for due dates
 
 ## Phase 9 - Quality & Testing
 
-- [ ] Add unit tests for utilities and validation
-- [ ] Add integration tests for key flows
-- [ ] Test auth, project creation, issue flow, board updates, and time logging
-- [ ] Verify responsive layout and accessibility basics
-- [ ] Optimize performance for dashboard and board pages
+- [x] Add unit tests for utilities and validation
+- [x] Add integration tests for key flows
+- [x] Test auth, project creation, issue flow, board updates, and time logging
+- [x] Verify responsive layout and accessibility basics
+- [x] Optimize performance for dashboard and board pages
 
 ## Phase 10 - Deployment
 

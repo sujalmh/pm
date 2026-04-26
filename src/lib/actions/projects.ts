@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requireAuth, requireRole } from "@/lib/permissions";
 import { createProjectSchema, updateProjectSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 
@@ -29,6 +30,9 @@ export async function getProjectByKey(key: string) {
 }
 
 export async function createProject(formData: FormData) {
+  // Only admins and managers can create projects
+  await requireRole("ADMIN", "MANAGER");
+
   const raw = {
     name: formData.get("name"),
     key: formData.get("key"),
@@ -57,6 +61,8 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(formData: FormData) {
+  await requireRole("ADMIN", "MANAGER");
+
   const raw = {
     id: formData.get("id"),
     name: formData.get("name") || undefined,
@@ -88,6 +94,7 @@ export async function updateProject(formData: FormData) {
 }
 
 export async function deleteProject(id: string) {
+  await requireRole("ADMIN", "MANAGER");
   await prisma.project.delete({ where: { id } });
   revalidatePath("/projects");
 }
