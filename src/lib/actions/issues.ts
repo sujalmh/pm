@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/permissions";
 import { createIssueSchema, updateIssueSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 
@@ -62,6 +63,8 @@ async function nextIssueKey(projectId: string): Promise<string> {
 }
 
 export async function createIssue(formData: FormData) {
+  const sessionUser = await requireAuth();
+
   const raw = {
     projectId: formData.get("projectId"),
     title: formData.get("title"),
@@ -70,7 +73,8 @@ export async function createIssue(formData: FormData) {
     priority: formData.get("priority"),
     assigneeId: formData.get("assigneeId") || undefined,
     storyPoints: formData.get("storyPoints") || undefined,
-    originalEstimateMinutes: formData.get("originalEstimateMinutes") || undefined,
+    originalEstimateMinutes:
+      formData.get("originalEstimateMinutes") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     sprintId: formData.get("sprintId") || undefined,
   };
@@ -83,20 +87,28 @@ export async function createIssue(formData: FormData) {
   const { dueDate, ...rest } = parsed.data;
   const issueKey = await nextIssueKey(rest.projectId);
 
-  // Use a hardcoded reporterId for now — will be replaced with session user
-  const reporter = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!reporter) return { error: "No reporter found" };
-
-  await prisma.issue.create({
+  const issue = await prisma.issue.create({
     data: {
       ...rest,
       issueKey,
-      reporterId: reporter.id,
+      reporterId: sessionUser.id,
       assigneeId: rest.assigneeId || null,
       sprintId: rest.sprintId || null,
       dueDate: dueDate ? new Date(dueDate) : null,
     },
   });
+
+  // Notify the assignee if one was set
+  if (rest.assigneeId && rest.assigneeId !== sessionUser.id) {
+    await prisma.notification.create({
+      data: {
+        userId: rest.assigneeId,
+        type: "ASSIGNED",
+        message: `You were assigned to "${rest.title}" (${issueKey})`,
+        issueId: issue.id,
+      },
+    });
+  }
 
   revalidatePath("/projects");
   revalidatePath("/backlog");
@@ -105,6 +117,8 @@ export async function createIssue(formData: FormData) {
 }
 
 export async function updateIssue(formData: FormData) {
+  const sessionUser = await requireAuth();
+
   const raw = {
     id: formData.get("id"),
     title: formData.get("title") || undefined,
@@ -114,7 +128,8 @@ export async function updateIssue(formData: FormData) {
     status: formData.get("status") || undefined,
     assigneeId: formData.get("assigneeId") || undefined,
     storyPoints: formData.get("storyPoints") || undefined,
-    originalEstimateMinutes: formData.get("originalEstimateMinutes") || undefined,
+    originalEstimateMinutes:
+      formData.get("originalEstimateMinutes") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     sprintId: formData.get("sprintId") || undefined,
     projectId: formData.get("projectId") || undefined,
@@ -126,13 +141,36 @@ export async function updateIssue(formData: FormData) {
   }
 
   const { id, dueDate, ...rest } = parsed.data;
-  await prisma.issue.update({
+
+  // Check previous assignee to detect reassignment
+  const existing = await prisma.issue.findUnique({
+    where: { id },
+    select: { assigneeId: true, title: true, issueKey: true },
+  });
+
+  const updated = await prisma.issue.update({
     where: { id },
     data: {
       ...rest,
       ...(dueDate !== undefined && { dueDate: new Date(dueDate) }),
     },
   });
+
+  // Notify new assignee if assignee changed
+  if (
+    rest.assigneeId &&
+    rest.assigneeId !== existing?.assigneeId &&
+    rest.assigneeId !== sessionUser.id
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId: rest.assigneeId,
+        type: "ASSIGNED",
+        message: `You were assigned to "${existing?.title ?? updated.title}" (${existing?.issueKey ?? updated.issueKey})`,
+        issueId: id,
+      },
+    });
+  }
 
   revalidatePath("/projects");
   revalidatePath("/backlog");
@@ -143,13 +181,18 @@ export async function updateIssue(formData: FormData) {
 export async function updateIssueStatus(id: string, status: string) {
   await prisma.issue.update({
     where: { id },
-    data: { status: status as "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" },
+    data: {
+      status: status as "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE",
+    },
   });
   revalidatePath("/board");
   revalidatePath("/backlog");
 }
 
-export async function updateIssueSprint(id: string, sprintId: string | null) {
+export async function updateIssueSprint(
+  id: string,
+  sprintId: string | null
+) {
   await prisma.issue.update({
     where: { id },
     data: { sprintId },

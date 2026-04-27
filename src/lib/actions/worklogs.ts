@@ -1,10 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/permissions";
 import { createWorklogSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 
 export async function addWorklog(formData: FormData) {
+  const sessionUser = await requireAuth();
+
   const raw = {
     issueId: formData.get("issueId"),
     date: formData.get("date"),
@@ -17,14 +20,10 @@ export async function addWorklog(formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  // Use first manager as logger — will be replaced with session user
-  const user = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!user) return { error: "No user found" };
-
   await prisma.worklog.create({
     data: {
       issueId: parsed.data.issueId,
-      userId: user.id,
+      userId: sessionUser.id,
       date: new Date(parsed.data.date),
       durationMinutes: parsed.data.durationMinutes,
       note: parsed.data.note || null,
@@ -93,9 +92,8 @@ export async function getWorklogsByProject(
 }
 
 export async function getWeeklyTimeSummary(startDate: Date, endDate: Date) {
-  // Use first manager — will be replaced with session user
-  const user = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!user) return { worklogs: [], user: null, totalMinutes: 0, dailyTotals: {} as Record<string, number> };
+  const sessionUser = await requireAuth();
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
 
   const worklogs = await getWorklogsByUser(user.id, startDate, endDate);
 

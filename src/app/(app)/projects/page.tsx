@@ -3,6 +3,8 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProjectStatus } from "@/types";
 import { getProjects, getTeams } from "@/lib/actions/projects";
 import { CreateProjectButton } from "@/components/projects/create-project-button";
+import { auth } from "@/lib/auth";
+import { isManagerOrAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,14 @@ const statusColors: Record<ProjectStatus, string> = {
 };
 
 export default async function ProjectsPage() {
-  const [projects, teams] = await Promise.all([getProjects(), getTeams()]);
+  const [projects, teams, session] = await Promise.all([
+    getProjects(),
+    getTeams(),
+    auth(),
+  ]);
+
+  const role = (session?.user as { role?: string })?.role ?? "MEMBER";
+  const canManage = isManagerOrAdmin(role);
 
   return (
     <div className="space-y-6">
@@ -24,7 +33,11 @@ export default async function ProjectsPage() {
             {projects.length} projects in your workspace
           </p>
         </div>
-        <CreateProjectButton teams={teams.map((t) => ({ id: t.id, name: t.name }))} />
+        {canManage && (
+          <CreateProjectButton
+            teams={teams.map((t) => ({ id: t.id, name: t.name }))}
+          />
+        )}
       </div>
 
       <div className="grid gap-4">
@@ -50,7 +63,12 @@ export default async function ProjectsPage() {
               <p className="text-sm text-gray-600">{project.description}</p>
               <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
                 <span>{project._count.issues} issues</span>
-                <span>Due: {project.dueDate ? new Date(project.dueDate).toLocaleDateString() : "—"}</span>
+                <span>
+                  Due:{" "}
+                  {project.dueDate
+                    ? new Date(project.dueDate).toLocaleDateString()
+                    : "—"}
+                </span>
               </div>
             </Card>
           </Link>
