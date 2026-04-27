@@ -2,9 +2,12 @@
 
 import { prisma } from "@/lib/db";
 import { createWorklogSchema } from "@/lib/validators";
+import { requireAuth, isManagerOrAdmin } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
 export async function addWorklog(formData: FormData) {
+  const sessionUser = await requireAuth();
+
   const raw = {
     issueId: formData.get("issueId"),
     date: formData.get("date"),
@@ -17,14 +20,10 @@ export async function addWorklog(formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  // Use first manager as logger — will be replaced with session user
-  const user = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!user) return { error: "No user found" };
-
   await prisma.worklog.create({
     data: {
       issueId: parsed.data.issueId,
-      userId: user.id,
+      userId: sessionUser.id,
       date: new Date(parsed.data.date),
       durationMinutes: parsed.data.durationMinutes,
       note: parsed.data.note || null,
@@ -37,6 +36,17 @@ export async function addWorklog(formData: FormData) {
 }
 
 export async function deleteWorklog(id: string) {
+  const sessionUser = await requireAuth();
+
+  // Load the worklog to verify ownership (or admin access)
+  const worklog = await prisma.worklog.findUniqueOrThrow({ where: { id } });
+  if (
+    worklog.userId !== sessionUser.id &&
+    !isManagerOrAdmin(sessionUser.role)
+  ) {
+    throw new Error("Not authorized");
+  }
+
   await prisma.worklog.delete({ where: { id } });
   revalidatePath("/projects");
   revalidatePath("/time");
@@ -47,6 +57,13 @@ export async function getWorklogsByUser(
   startDate: Date,
   endDate: Date,
 ) {
+  const sessionUser = await requireAuth();
+
+  // Only allow fetching own worklogs unless manager/admin
+  if (userId !== sessionUser.id && !isManagerOrAdmin(sessionUser.role)) {
+    throw new Error("Not authorized");
+  }
+
   return prisma.worklog.findMany({
     where: {
       userId,
@@ -71,6 +88,13 @@ export async function getWorklogsByProject(
   startDate?: Date,
   endDate?: Date,
 ) {
+  const sessionUser = await requireAuth();
+
+  // Only managers/admins can see all project worklogs
+  if (!isManagerOrAdmin(sessionUser.role)) {
+    throw new Error("Not authorized");
+  }
+
   return prisma.worklog.findMany({
     where: {
       issue: { projectId },
@@ -93,22 +117,20 @@ export async function getWorklogsByProject(
 }
 
 export async function getWeeklyTimeSummary(startDate: Date, endDate: Date) {
-  // Use first manager — will be replaced with session user
-  const user = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!user) return { worklogs: [], user: null, totalMinutes: 0, dailyTotals: {} as Record<string, number> };
+  const sessionUser = await requireAuth();
 
-  const worklogs = await getWorklogsByUser(user.id, startDate, endDate);
+  // Use sessionUser.id directly — no redundant DB round-trip
+  const worklogs = await getWorklogsByUser(sessionUser.id, startDate, endDate);
 
   const totalMinutes = worklogs.reduce((sum, w) => sum + w.durationMinutes, 0);
 
-  // Group by day
   const dailyTotals: Record<string, number> = {};
   for (const w of worklogs) {
     const key = new Date(w.date).toISOString().split("T")[0];
     dailyTotals[key] = (dailyTotals[key] || 0) + w.durationMinutes;
   }
 
-  return { worklogs, user, totalMinutes, dailyTotals };
+  return { worklogs, user: sessionUser, totalMinutes, dailyTotals };
 }
 
 export async function getProjectTimeReport(projectId: string) {
@@ -116,7 +138,6 @@ export async function getProjectTimeReport(projectId: string) {
 
   const totalMinutes = worklogs.reduce((sum, w) => sum + w.durationMinutes, 0);
 
-  // Group by issue
   const byIssue: Record<string, {
     issueKey: string;
     title: string;
@@ -138,7 +159,6 @@ export async function getProjectTimeReport(projectId: string) {
     byIssue[w.issue.id].loggedMinutes += w.durationMinutes;
   }
 
-  // Group by member
   const byMember: Record<string, { name: string; totalMinutes: number }> = {};
   for (const w of worklogs) {
     if (!byMember[w.user.id]) {

@@ -1,8 +1,30 @@
 "use client";
 
 import { Bell, Search } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
-export function TopBar() {
+/**
+ * Safely derives initials from a display name.
+ * Handles empty strings, multi-space names, and names with no valid words.
+ */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+}
+
+interface TopBarProps {
+  userId: string;
+  userName: string | null | undefined;
+}
+
+export function TopBar({ userId, userName }: TopBarProps) {
+  const userInitials = initials(userName ?? "");
+
   return (
     <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
       {/* Search */}
@@ -17,12 +39,13 @@ export function TopBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        <button className="relative rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-        </button>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-          SA
+        <NotificationBell userId={userId} />
+        <div
+          aria-label={`Signed in as ${userName ?? "Unknown"}`}
+          title={userName ?? undefined}
+          className="flex h-8 w-8 cursor-default items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700"
+        >
+          {userInitials}
         </div>
       </div>
     </header>

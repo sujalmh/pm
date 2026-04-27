@@ -1,4 +1,31 @@
-export default function LoginPage() {
+import { signIn, auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
+
+export default async function LoginPage() {
+  // Redirect already-authenticated users
+  const session = await auth();
+  if (session?.user?.id) {
+    redirect("/dashboard");
+  }
+
+  async function loginAction(formData: FormData) {
+    "use server";
+    try {
+      await signIn("credentials", {
+        email: formData.get("email"),
+        password: formData.get("password"),
+        redirectTo: "/dashboard",
+      });
+    } catch (error) {
+      // NEXT_REDIRECT is thrown by redirect() — must re-throw to propagate
+      if (error instanceof AuthError) {
+        redirect("/login?error=invalid_credentials");
+      }
+      throw error;
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
@@ -14,7 +41,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="space-y-4" action="/api/auth/callback/credentials" method="POST">
+        <form className="space-y-4" action={loginAction}>
           <div>
             <label
               htmlFor="email"
@@ -52,6 +79,7 @@ export default function LoginPage() {
           </div>
 
           <button
+            id="login-submit"
             type="submit"
             className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >

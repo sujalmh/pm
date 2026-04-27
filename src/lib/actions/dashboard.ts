@@ -1,21 +1,22 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/permissions";
 
 export async function getDashboardData() {
-  try {
-    // Use first manager for demo/session stand-in
-    const user = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-    if (!user) return null;
+  // requireAuth() must be outside the try block so that NEXT_REDIRECT
+  // (thrown by redirect("/login")) can propagate correctly
+  const sessionUser = await requireAuth();
 
+  try {
     // 1. Stats
     const [openCount, inProgressCount, reviewCount, doneThisSprintCount] = await Promise.all([
-      prisma.issue.count({ where: { assigneeId: user.id, status: { in: ["BACKLOG", "TODO"] } } }),
-      prisma.issue.count({ where: { assigneeId: user.id, status: "IN_PROGRESS" } }),
-      prisma.issue.count({ where: { assigneeId: user.id, status: "REVIEW" } }),
+      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: { in: ["BACKLOG", "TODO"] } } }),
+      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: "IN_PROGRESS" } }),
+      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: "REVIEW" } }),
       prisma.issue.count({
         where: {
-          assigneeId: user.id,
+          assigneeId: sessionUser.id,
           status: "DONE",
           sprint: { status: "ACTIVE" }
         }
@@ -32,11 +33,11 @@ export async function getDashboardData() {
     // 2. My Open Tasks (To Do / In Progress / Review)
     const myTasks = await prisma.issue.findMany({
       where: {
-        assigneeId: user.id,
+        assigneeId: sessionUser.id,
         status: { not: "DONE" }
       },
       include: { project: true },
-      orderBy: { priority: "asc" }, // CRITICAL, HIGH, etc
+      orderBy: { priority: "asc" },
       take: 10
     });
 
@@ -49,7 +50,7 @@ export async function getDashboardData() {
 
     const urgentTasks = await prisma.issue.findMany({
       where: {
-        assigneeId: user.id,
+        assigneeId: sessionUser.id,
         status: { not: "DONE" },
         dueDate: { not: null, lte: next3Days }
       },
@@ -86,7 +87,7 @@ export async function getDashboardData() {
     });
 
     return {
-      user,
+      user: sessionUser,
       stats,
       myTasks,
       urgentTasks,

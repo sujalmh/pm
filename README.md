@@ -34,3 +34,28 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Testing
+
+### Unit Tests (Vitest)
+
+```bash
+npm run test:unit
+```
+
+### E2E Tests (Playwright)
+
+Before running E2E tests for the first time (or in CI), install the Playwright browsers:
+
+```bash
+npm run test:e2e:install
+```
+
+Then run the E2E suite:
+
+```bash
+npm run test:e2e
+```
+
+> **CI note:** The `test:e2e:install` step is required before `test:e2e` on any clean environment. Add it as a CI step before your test command.
+

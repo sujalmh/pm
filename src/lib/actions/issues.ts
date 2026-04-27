@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { createIssueSchema, updateIssueSchema } from "@/lib/validators";
+import { requireAuth } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
 export async function getIssuesByProject(projectId: string) {
@@ -62,6 +63,8 @@ async function nextIssueKey(projectId: string): Promise<string> {
 }
 
 export async function createIssue(formData: FormData) {
+  const sessionUser = await requireAuth();
+
   const raw = {
     projectId: formData.get("projectId"),
     title: formData.get("title"),
@@ -83,20 +86,28 @@ export async function createIssue(formData: FormData) {
   const { dueDate, ...rest } = parsed.data;
   const issueKey = await nextIssueKey(rest.projectId);
 
-  // Use a hardcoded reporterId for now — will be replaced with session user
-  const reporter = await prisma.user.findFirst({ where: { role: "MANAGER" } });
-  if (!reporter) return { error: "No reporter found" };
-
-  await prisma.issue.create({
+  const issue = await prisma.issue.create({
     data: {
       ...rest,
       issueKey,
-      reporterId: reporter.id,
+      reporterId: sessionUser.id,
       assigneeId: rest.assigneeId || null,
       sprintId: rest.sprintId || null,
       dueDate: dueDate ? new Date(dueDate) : null,
     },
   });
+
+  // Notify assignee if different from reporter
+  if (issue.assigneeId && issue.assigneeId !== sessionUser.id) {
+    await prisma.notification.create({
+      data: {
+        userId: issue.assigneeId,
+        issueId: issue.id,
+        type: "ASSIGNED",
+        message: `You were assigned to "${issue.title}" (${issue.issueKey})`,
+      },
+    });
+  }
 
   revalidatePath("/projects");
   revalidatePath("/backlog");
@@ -105,6 +116,8 @@ export async function createIssue(formData: FormData) {
 }
 
 export async function updateIssue(formData: FormData) {
+  await requireAuth();
+
   const raw = {
     id: formData.get("id"),
     title: formData.get("title") || undefined,
@@ -126,13 +139,37 @@ export async function updateIssue(formData: FormData) {
   }
 
   const { id, dueDate, ...rest } = parsed.data;
-  await prisma.issue.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(dueDate !== undefined && { dueDate: new Date(dueDate) }),
-    },
-  });
+
+  // Use a transaction to atomically read the previous state and apply the update
+  // This prevents a TOCTOU race when detecting assignee changes
+  const [existing, updated] = await prisma.$transaction([
+    prisma.issue.findUnique({
+      where: { id },
+      select: { assigneeId: true, title: true, issueKey: true },
+    }),
+    prisma.issue.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(dueDate !== undefined && { dueDate: new Date(dueDate) }),
+      },
+    }),
+  ]);
+
+  // Notify new assignee if assignee changed
+  if (
+    updated.assigneeId &&
+    updated.assigneeId !== existing?.assigneeId
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId: updated.assigneeId,
+        issueId: updated.id,
+        type: "ASSIGNED",
+        message: `You were assigned to "${updated.title}" (${updated.issueKey})`,
+      },
+    });
+  }
 
   revalidatePath("/projects");
   revalidatePath("/backlog");
@@ -141,6 +178,8 @@ export async function updateIssue(formData: FormData) {
 }
 
 export async function updateIssueStatus(id: string, status: string) {
+  await requireAuth();
+
   await prisma.issue.update({
     where: { id },
     data: { status: status as "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" },
@@ -150,6 +189,8 @@ export async function updateIssueStatus(id: string, status: string) {
 }
 
 export async function updateIssueSprint(id: string, sprintId: string | null) {
+  await requireAuth();
+
   await prisma.issue.update({
     where: { id },
     data: { sprintId },
@@ -159,6 +200,8 @@ export async function updateIssueSprint(id: string, sprintId: string | null) {
 }
 
 export async function deleteIssue(id: string) {
+  await requireAuth();
+
   await prisma.issue.delete({ where: { id } });
   revalidatePath("/projects");
   revalidatePath("/backlog");

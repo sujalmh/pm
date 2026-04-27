@@ -54,21 +54,22 @@ enum IssueStatus {
 // ─── Models ──────────────────────────────────────────────
 
 model User {
-  id             String       @id @default(cuid())
+  id             String         @id @default(cuid())
   name           String
-  email          String       @unique
+  email          String         @unique
   passwordHash   String
-  role           Role         @default(MEMBER)
+  role           Role           @default(MEMBER)
   avatar         String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  ledTeams       Team[]       @relation("TeamLead")
+  ledTeams       Team[]         @relation("TeamLead")
   teamMembers    TeamMember[]
-  assignedIssues Issue[]      @relation("Assignee")
-  reportedIssues Issue[]      @relation("Reporter")
+  assignedIssues Issue[]        @relation("Assignee")
+  reportedIssues Issue[]        @relation("Reporter")
   worklogs       Worklog[]
   comments       Comment[]
+  notifications  Notification[]
 }
 
 model Team {
@@ -129,29 +130,30 @@ model Sprint {
 }
 
 model Issue {
-  id                     String      @id @default(cuid())
-  projectId              String
-  sprintId               String?
-  issueKey               String      @unique
-  type                   IssueType   @default(TASK)
-  title                  String
-  description            String?
-  priority               Priority    @default(MEDIUM)
-  status                 IssueStatus @default(BACKLOG)
-  assigneeId             String?
-  reporterId             String
-  storyPoints            Int?
+  id                      String         @id @default(cuid())
+  projectId               String
+  sprintId                String?
+  issueKey                String         @unique
+  type                    IssueType      @default(TASK)
+  title                   String
+  description             String?
+  priority                Priority       @default(MEDIUM)
+  status                  IssueStatus    @default(BACKLOG)
+  assigneeId              String?
+  reporterId              String
+  storyPoints             Int?
   originalEstimateMinutes Int?
-  dueDate                DateTime?
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
+  dueDate                 DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
 
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sprint   Sprint?   @relation(fields: [sprintId], references: [id], onDelete: SetNull)
-  assignee User?     @relation("Assignee", fields: [assigneeId], references: [id])
-  reporter User      @relation("Reporter", fields: [reporterId], references: [id])
-  worklogs Worklog[]
-  comments Comment[]
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint        Sprint?        @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  assignee      User?          @relation("Assignee", fields: [assigneeId], references: [id])
+  reporter      User           @relation("Reporter", fields: [reporterId], references: [id])
+  worklogs      Worklog[]
+  comments      Comment[]
+  notifications Notification[]
 }
 
 model Worklog {
@@ -178,3 +180,26 @@ model Comment {
   issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id])
 }
+
+enum NotificationType {
+  ASSIGNED
+  MENTIONED
+  REMINDER
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  issueId   String?
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue Issue? @relation(fields: [issueId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read, createdAt])
+  @@index([issueId])
+}
+
