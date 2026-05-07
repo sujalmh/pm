@@ -1,6 +1,6 @@
 import { signIn, auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 
 export default async function LoginPage() {
   const session = await auth();
@@ -11,17 +11,31 @@ export default async function LoginPage() {
   async function loginAction(formData: FormData) {
     "use server";
     try {
-      await signIn("credentials", {
-        email: formData.get("email"),
-        password: formData.get("password"),
-        redirectTo: "/dashboard",
+      const result = await signIn("credentials", {
+        email: String(formData.get("email") ?? "").trim(),
+        password: String(formData.get("password") ?? ""),
+        redirect: false,
       });
+
+      if (
+        result &&
+        typeof result === "object" &&
+        "error" in result &&
+        result.error
+      ) {
+        redirect("/login?error=invalid_credentials");
+      }
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (
+        error instanceof AuthError ||
+        error instanceof CredentialsSignin
+      ) {
         redirect("/login?error=invalid_credentials");
       }
       throw error;
     }
+
+    redirect("/dashboard");
   }
 
   return (
