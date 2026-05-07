@@ -4,19 +4,28 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
-export async function getNotifications() {
+/** Fetch the current user's notifications (unread first, last 50). */
+export async function getMyNotifications() {
   const sessionUser = await requireAuth();
-
   return prisma.notification.findMany({
     where: { userId: sessionUser.id },
-    orderBy: { createdAt: "desc" },
+    include: {
+      issue: {
+        select: { issueKey: true, project: { select: { key: true } } },
+      },
+    },
+    orderBy: [{ read: "asc" }, { createdAt: "desc" }],
     take: 50,
   });
 }
 
+/** @deprecated Use getMyNotifications — kept for compatibility. */
+export async function getNotifications() {
+  return getMyNotifications();
+}
+
 export async function getUnreadNotificationCount() {
   const sessionUser = await requireAuth();
-
   return prisma.notification.count({
     where: { userId: sessionUser.id, read: false },
   });
@@ -24,7 +33,6 @@ export async function getUnreadNotificationCount() {
 
 export async function markNotificationRead(id: string) {
   const sessionUser = await requireAuth();
-
   await prisma.notification.updateMany({
     where: { id, userId: sessionUser.id },
     data: { read: true },
@@ -34,12 +42,15 @@ export async function markNotificationRead(id: string) {
 
 export async function markAllNotificationsRead() {
   const sessionUser = await requireAuth();
-
   await prisma.notification.updateMany({
     where: { userId: sessionUser.id, read: false },
     data: { read: true },
   });
   revalidatePath("/");
+}
+
+export async function markAllRead() {
+  return markAllNotificationsRead();
 }
 
 /**
@@ -49,9 +60,8 @@ export async function markAllNotificationsRead() {
 export async function checkDueDateReminders() {
   const now = new Date();
 
-  // Anchor to UTC midnight to avoid server-local-time drift across deployments
   const todayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 
   const next3Days = new Date(todayStart);
@@ -74,7 +84,6 @@ export async function checkDueDateReminders() {
 
   if (upcomingIssues.length === 0) return { created: 0 };
 
-  // Single query to find existing reminders sent today (batch dedup)
   const existing = await prisma.notification.findMany({
     where: {
       type: "REMINDER",

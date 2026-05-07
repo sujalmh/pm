@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 
 export default async function LoginPage() {
-  // Redirect already-authenticated users
   const session = await auth();
   if (session?.user?.id) {
     redirect("/dashboard");
@@ -18,7 +17,6 @@ export default async function LoginPage() {
         redirectTo: "/dashboard",
       });
     } catch (error) {
-      // NEXT_REDIRECT is thrown by redirect() — must re-throw to propagate
       if (error instanceof AuthError) {
         redirect("/login?error=invalid_credentials");
       }

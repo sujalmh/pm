@@ -9,17 +9,18 @@ import { checkDueDateReminders } from "@/lib/actions/notifications";
  * This prevents unauthenticated callers from triggering the reminder check.
  */
 export async function GET(req: NextRequest) {
-  // Allow cron/server invocations via shared secret
   const cronSecret = process.env.CRON_SECRET;
   const incomingSecret = req.headers.get("x-cron-secret");
 
   const hasValidSecret = cronSecret && incomingSecret === cronSecret;
 
   if (!hasValidSecret) {
-    // Fall back to session auth (e.g., admin manually triggering via browser)
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
   }
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     console.error("Reminder check failed:", error);
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,9 +1,37 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { createCommentSchema } from "@/lib/validators";
 import { requireAuth } from "@/lib/permissions";
+import { createCommentSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
+
+/** Parse @Name mentions from a comment body and return matched user IDs. */
+async function extractMentionedUserIds(
+  body: string,
+  authorId: string,
+): Promise<string[]> {
+  const mentions = body.match(/@[\w]+(?: [\w]+)*/g) ?? [];
+  if (mentions.length === 0) return [];
+
+  const names = mentions.map((m) => m.slice(1).trim());
+
+  const users = await prisma.user.findMany({
+    where: {
+      AND: [
+        { id: { not: authorId } },
+        {
+          OR: names.flatMap((n) => [
+            { name: { equals: n, mode: "insensitive" } },
+            { name: { startsWith: n, mode: "insensitive" } },
+          ]),
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return users.map((u) => u.id);
+}
 
 export async function addComment(formData: FormData) {
   const sessionUser = await requireAuth();
@@ -23,42 +51,24 @@ export async function addComment(formData: FormData) {
       ...parsed.data,
       userId: sessionUser.id,
     },
+    include: { issue: { select: { title: true, issueKey: true } } },
   });
 
-  // Parse @mentions (single-token handles like @username or @[Full Name])
-  // Use explicit wrapped form @[...] for multi-word names to prevent greedy matches
-  const mentionPattern = /@\[([^\]]+)\]|@(\w+)/g;
-  const mentionedNames = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = mentionPattern.exec(parsed.data.body)) !== null) {
-    const name = match[1] ?? match[2];
-    if (name) mentionedNames.add(name);
-  }
+  const mentionedIds = await extractMentionedUserIds(
+    parsed.data.body,
+    sessionUser.id,
+  );
 
-  if (mentionedNames.size > 0) {
-    // Find mentioned users by exact name match, excluding the commenter
-    const mentionedUsers = await prisma.user.findMany({
-      where: {
-        name: { in: Array.from(mentionedNames) },
-        id: { not: sessionUser.id },
-      },
-      select: { id: true },
+  if (mentionedIds.length > 0) {
+    await prisma.notification.createMany({
+      data: mentionedIds.map((userId) => ({
+        userId,
+        type: "MENTIONED" as const,
+        message: `${sessionUser.name ?? "Someone"} mentioned you in a comment on "${comment.issue.title}" (${comment.issue.issueKey})`,
+        issueId: parsed.data.issueId,
+      })),
+      skipDuplicates: true,
     });
-
-    // Deduplicate by userId before inserting
-    const uniqueUserIds = [...new Set(mentionedUsers.map((u) => u.id))];
-
-    if (uniqueUserIds.length > 0) {
-      await prisma.notification.createMany({
-        data: uniqueUserIds.map((userId) => ({
-          userId,
-          issueId: comment.issueId,
-          type: "MENTIONED" as const,
-          message: `You were mentioned in a comment on issue ${parsed.data.issueId}`,
-        })),
-        skipDuplicates: true,
-      });
-    }
   }
 
   revalidatePath("/projects");

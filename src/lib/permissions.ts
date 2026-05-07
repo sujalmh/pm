@@ -1,10 +1,9 @@
-"use server";
-
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Role } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/client";
 
 export type { Role };
+export { isManagerOrAdmin } from "./role";
 
 /**
  * Requires the user to be authenticated.
@@ -29,11 +28,4 @@ export async function requireRole(...roles: Role[]) {
     throw new Error("Forbidden: insufficient role");
   }
   return user;
-}
-
-/**
- * Returns true if the role is MANAGER or ADMIN.
- */
-export function isManagerOrAdmin(role: string): boolean {
-  return role === "MANAGER" || role === "ADMIN";
 }

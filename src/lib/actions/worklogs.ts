@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { createWorklogSchema } from "@/lib/validators";
 import { requireAuth, isManagerOrAdmin } from "@/lib/permissions";
+import { createWorklogSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 
 export async function addWorklog(formData: FormData) {
@@ -38,7 +38,6 @@ export async function addWorklog(formData: FormData) {
 export async function deleteWorklog(id: string) {
   const sessionUser = await requireAuth();
 
-  // Load the worklog to verify ownership (or admin access)
   const worklog = await prisma.worklog.findUniqueOrThrow({ where: { id } });
   if (
     worklog.userId !== sessionUser.id &&
@@ -59,7 +58,6 @@ export async function getWorklogsByUser(
 ) {
   const sessionUser = await requireAuth();
 
-  // Only allow fetching own worklogs unless manager/admin
   if (userId !== sessionUser.id && !isManagerOrAdmin(sessionUser.role)) {
     throw new Error("Not authorized");
   }
@@ -90,7 +88,6 @@ export async function getWorklogsByProject(
 ) {
   const sessionUser = await requireAuth();
 
-  // Only managers/admins can see all project worklogs
   if (!isManagerOrAdmin(sessionUser.role)) {
     throw new Error("Not authorized");
   }
@@ -119,7 +116,6 @@ export async function getWorklogsByProject(
 export async function getWeeklyTimeSummary(startDate: Date, endDate: Date) {
   const sessionUser = await requireAuth();
 
-  // Use sessionUser.id directly — no redundant DB round-trip
   const worklogs = await getWorklogsByUser(sessionUser.id, startDate, endDate);
 
   const totalMinutes = worklogs.reduce((sum, w) => sum + w.durationMinutes, 0);
@@ -138,13 +134,16 @@ export async function getProjectTimeReport(projectId: string) {
 
   const totalMinutes = worklogs.reduce((sum, w) => sum + w.durationMinutes, 0);
 
-  const byIssue: Record<string, {
-    issueKey: string;
-    title: string;
-    estimateMinutes: number | null;
-    loggedMinutes: number;
-    status: string;
-  }> = {};
+  const byIssue: Record<
+    string,
+    {
+      issueKey: string;
+      title: string;
+      estimateMinutes: number | null;
+      loggedMinutes: number;
+      status: string;
+    }
+  > = {};
 
   for (const w of worklogs) {
     if (!byIssue[w.issue.id]) {

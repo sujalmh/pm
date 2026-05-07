@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isManagerOrAdmin } from "./permissions";
+import { isManagerOrAdmin } from "./role";
 
 describe("isManagerOrAdmin", () => {
   it("allows ADMIN", () => {

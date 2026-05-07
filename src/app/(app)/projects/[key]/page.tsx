@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { getProjectByKey } from "@/lib/actions/projects";
 import { CreateIssueButton } from "@/components/issues/create-issue-button";
 import { IssueTable } from "@/components/issues/issue-table";
+import { auth } from "@/lib/auth";
+import { isManagerOrAdmin } from "@/lib/permissions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +16,15 @@ export default async function ProjectDetailPage({
   params: Promise<{ key: string }>;
 }) {
   const { key } = await params;
-  const project = await getProjectByKey(key);
+  const [project, session] = await Promise.all([
+    getProjectByKey(key),
+    auth(),
+  ]);
 
   if (!project) return notFound();
+
+  const role = (session?.user as { role?: string })?.role ?? "MEMBER";
+  const canManage = isManagerOrAdmin(role);
 
   const activeSprint = project.sprints.find((s) => s.status === "ACTIVE");
   const members = project.team.members.map((m) => ({
@@ -36,7 +44,8 @@ export default async function ProjectDetailPage({
           <div>
             <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
             <p className="text-sm text-gray-500">
-              {project.team.name} {activeSprint ? `· ${activeSprint.name}` : ""}
+              {project.team.name}{" "}
+              {activeSprint ? `· ${activeSprint.name}` : ""}
             </p>
           </div>
         </div>
@@ -44,7 +53,12 @@ export default async function ProjectDetailPage({
           <Link href={`/projects/${key}/time`}>
             <Button variant="secondary">Time Report</Button>
           </Link>
-          <Button variant="secondary">Settings</Button>
+          {/* Settings button — manager/admin only */}
+          {canManage && (
+            <Link href="/settings">
+              <Button variant="secondary">Settings</Button>
+            </Link>
+          )}
           <CreateIssueButton
             projectId={project.id}
             members={members}

@@ -4,47 +4,67 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/permissions";
 
 export async function getDashboardData() {
-  // requireAuth() must be outside the try block so that NEXT_REDIRECT
-  // (thrown by redirect("/login")) can propagate correctly
   const sessionUser = await requireAuth();
 
   try {
-    // 1. Stats
-    const [openCount, inProgressCount, reviewCount, doneThisSprintCount] = await Promise.all([
-      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: { in: ["BACKLOG", "TODO"] } } }),
-      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: "IN_PROGRESS" } }),
-      prisma.issue.count({ where: { assigneeId: sessionUser.id, status: "REVIEW" } }),
-      prisma.issue.count({
-        where: {
-          assigneeId: sessionUser.id,
-          status: "DONE",
-          sprint: { status: "ACTIVE" }
-        }
-      })
-    ]);
+    const [openCount, inProgressCount, reviewCount, doneThisSprintCount] =
+      await Promise.all([
+        prisma.issue.count({
+          where: {
+            assigneeId: sessionUser.id,
+            status: { in: ["BACKLOG", "TODO"] },
+          },
+        }),
+        prisma.issue.count({
+          where: { assigneeId: sessionUser.id, status: "IN_PROGRESS" },
+        }),
+        prisma.issue.count({
+          where: { assigneeId: sessionUser.id, status: "REVIEW" },
+        }),
+        prisma.issue.count({
+          where: {
+            assigneeId: sessionUser.id,
+            status: "DONE",
+            sprint: { status: "ACTIVE" },
+          },
+        }),
+      ]);
 
     const stats = [
-      { label: "Open Issues", value: openCount.toString(), color: "text-blue-600" },
-      { label: "In Progress", value: inProgressCount.toString(), color: "text-yellow-600" },
-      { label: "In Review", value: reviewCount.toString(), color: "text-purple-600" },
-      { label: "Done This Sprint", value: doneThisSprintCount.toString(), color: "text-green-600" },
+      {
+        label: "Open Issues",
+        value: openCount.toString(),
+        color: "text-blue-600",
+      },
+      {
+        label: "In Progress",
+        value: inProgressCount.toString(),
+        color: "text-yellow-600",
+      },
+      {
+        label: "In Review",
+        value: reviewCount.toString(),
+        color: "text-purple-600",
+      },
+      {
+        label: "Done This Sprint",
+        value: doneThisSprintCount.toString(),
+        color: "text-green-600",
+      },
     ];
 
-    // 2. My Open Tasks (To Do / In Progress / Review)
     const myTasks = await prisma.issue.findMany({
       where: {
         assigneeId: sessionUser.id,
-        status: { not: "DONE" }
+        status: { not: "DONE" },
       },
       include: { project: true },
       orderBy: { priority: "asc" },
-      take: 10
+      take: 10,
     });
 
-    // 3. Overdue and Due Soon Tasks
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const next3Days = new Date(today);
     next3Days.setDate(today.getDate() + 3);
 
@@ -52,29 +72,25 @@ export async function getDashboardData() {
       where: {
         assigneeId: sessionUser.id,
         status: { not: "DONE" },
-        dueDate: { not: null, lte: next3Days }
+        dueDate: { not: null, lte: next3Days },
       },
       include: { project: true },
       orderBy: { dueDate: "asc" },
-      take: 5
+      take: 5,
     });
 
-    // 4. Project Progress (Active Sprints)
     const activeSprints = await prisma.sprint.findMany({
       where: { status: "ACTIVE" },
       include: {
         project: true,
-        issues: {
-          select: { status: true }
-        }
-      }
+        issues: { select: { status: true } },
+      },
     });
 
-    const projectProgress = activeSprints.map(sprint => {
+    const projectProgress = activeSprints.map((sprint) => {
       const total = sprint.issues.length;
-      const done = sprint.issues.filter(i => i.status === "DONE").length;
+      const done = sprint.issues.filter((i) => i.status === "DONE").length;
       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
       return {
         projectId: sprint.project.id,
         projectName: sprint.project.name,
@@ -82,7 +98,7 @@ export async function getDashboardData() {
         sprintName: sprint.name,
         total,
         done,
-        pct
+        pct,
       };
     });
 
@@ -91,7 +107,7 @@ export async function getDashboardData() {
       stats,
       myTasks,
       urgentTasks,
-      projectProgress
+      projectProgress,
     };
   } catch (error) {
     console.error("Dashboard data fetch failed:", error);

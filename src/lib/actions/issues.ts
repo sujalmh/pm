@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { createIssueSchema, updateIssueSchema } from "@/lib/validators";
 import { requireAuth } from "@/lib/permissions";
+import { createIssueSchema, updateIssueSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 
 export async function getIssuesByProject(projectId: string) {
@@ -73,7 +73,8 @@ export async function createIssue(formData: FormData) {
     priority: formData.get("priority"),
     assigneeId: formData.get("assigneeId") || undefined,
     storyPoints: formData.get("storyPoints") || undefined,
-    originalEstimateMinutes: formData.get("originalEstimateMinutes") || undefined,
+    originalEstimateMinutes:
+      formData.get("originalEstimateMinutes") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     sprintId: formData.get("sprintId") || undefined,
   };
@@ -97,7 +98,6 @@ export async function createIssue(formData: FormData) {
     },
   });
 
-  // Notify assignee if different from reporter
   if (issue.assigneeId && issue.assigneeId !== sessionUser.id) {
     await prisma.notification.create({
       data: {
@@ -116,7 +116,7 @@ export async function createIssue(formData: FormData) {
 }
 
 export async function updateIssue(formData: FormData) {
-  await requireAuth();
+  const sessionUser = await requireAuth();
 
   const raw = {
     id: formData.get("id"),
@@ -127,7 +127,8 @@ export async function updateIssue(formData: FormData) {
     status: formData.get("status") || undefined,
     assigneeId: formData.get("assigneeId") || undefined,
     storyPoints: formData.get("storyPoints") || undefined,
-    originalEstimateMinutes: formData.get("originalEstimateMinutes") || undefined,
+    originalEstimateMinutes:
+      formData.get("originalEstimateMinutes") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     sprintId: formData.get("sprintId") || undefined,
     projectId: formData.get("projectId") || undefined,
@@ -140,8 +141,6 @@ export async function updateIssue(formData: FormData) {
 
   const { id, dueDate, ...rest } = parsed.data;
 
-  // Use a transaction to atomically read the previous state and apply the update
-  // This prevents a TOCTOU race when detecting assignee changes
   const [existing, updated] = await prisma.$transaction([
     prisma.issue.findUnique({
       where: { id },
@@ -156,10 +155,10 @@ export async function updateIssue(formData: FormData) {
     }),
   ]);
 
-  // Notify new assignee if assignee changed
   if (
     updated.assigneeId &&
-    updated.assigneeId !== existing?.assigneeId
+    updated.assigneeId !== existing?.assigneeId &&
+    updated.assigneeId !== sessionUser.id
   ) {
     await prisma.notification.create({
       data: {
@@ -182,13 +181,18 @@ export async function updateIssueStatus(id: string, status: string) {
 
   await prisma.issue.update({
     where: { id },
-    data: { status: status as "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" },
+    data: {
+      status: status as "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE",
+    },
   });
   revalidatePath("/board");
   revalidatePath("/backlog");
 }
 
-export async function updateIssueSprint(id: string, sprintId: string | null) {
+export async function updateIssueSprint(
+  id: string,
+  sprintId: string | null,
+) {
   await requireAuth();
 
   await prisma.issue.update({

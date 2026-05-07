@@ -51,6 +51,12 @@ enum IssueStatus {
   DONE
 }
 
+enum NotificationType {
+  ASSIGNED
+  MENTIONED
+  REMINDER
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -181,12 +187,6 @@ model Comment {
   user  User  @relation(fields: [userId], references: [id])
 }
 
-enum NotificationType {
-  ASSIGNED
-  MENTIONED
-  REMINDER
-}
-
 model Notification {
   id        String           @id @default(cuid())
   userId    String
@@ -202,4 +202,3 @@ model Notification {
   @@index([userId, read, createdAt])
   @@index([issueId])
 }
-
