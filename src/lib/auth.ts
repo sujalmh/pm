@@ -1,3 +1,4 @@
+import "./sanitize-auth-env";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
@@ -5,6 +6,7 @@ import { prisma } from "@/lib/db";
 import "@/lib/auth-types";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
