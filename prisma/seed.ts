@@ -7,6 +7,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: "admin@coreason.dev" },
+  });
+  if (existingAdmin) {
+    console.log("Already seeded (admin@coreason.dev exists); skipping.");
+    return;
+  }
+
   const password = await hash("password123", 12);
 
   // ── Users ──────────────────────────────────────────────
