@@ -7,7 +7,7 @@ export type {
   Issue,
   Worklog,
   Comment,
-} from "@/generated/prisma/client";
+} from "@prisma/client";
 
 export {
   Role,
@@ -16,4 +16,4 @@ export {
   IssueType,
   Priority,
   IssueStatus,
-} from "@/generated/prisma/client";
+} from "@prisma/client";

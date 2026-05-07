@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import type { Role } from "@/generated/prisma/client";
+import type { Role } from "@prisma/client";
 
 export type { Role };
 export { isManagerOrAdmin } from "./role";
